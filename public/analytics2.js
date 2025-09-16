@@ -1,8 +1,7 @@
+// analytics.js
 // IMPORTANT: Use the same firebaseConfig values as in app.js
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,16 +14,14 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const ctx = document.getElementById('spendingChart').getContext('2d');
 let chart = null;
 
 function toDateKey(ts) {
-  // ts can be a Firestore Timestamp or Date
+  // Firestore Timestamp or Date
   const d = ts && ts.toDate ? ts.toDate() : (ts ? new Date(ts) : new Date());
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -33,7 +30,9 @@ function toDateKey(ts) {
 }
 
 // Listen to changes and recompute daily spending
-db.collection('groceryItems').orderBy('createdAt','asc').onSnapshot(snapshot => {
+const q = query(collection(db, "groceryItems"), orderBy("createdAt", "asc"));
+
+onSnapshot(q, snapshot => {
   const items = [];
   snapshot.forEach(doc => {
     const d = doc.data();
@@ -43,7 +42,7 @@ db.collection('groceryItems').orderBy('createdAt','asc').onSnapshot(snapshot => 
   // Filter: only checked items with price > 0
   const bought = items.filter(i => i.checked && Number(i.price) > 0);
 
-  // Aggregate by purchase date (use updatedAt if available, else createdAt)
+  // Aggregate by purchase date
   const daily = {};
   let total = 0;
   bought.forEach(i => {
@@ -53,20 +52,18 @@ db.collection('groceryItems').orderBy('createdAt','asc').onSnapshot(snapshot => 
     total += Number(i.price || 0);
   });
 
-  // Sort keys (dates)
   const labels = Object.keys(daily).sort();
   const data = labels.map(k => daily[k]);
 
-  // If no data, show message
   if (labels.length === 0) {
     document.getElementById('analyticsStats').innerText = 'No purchased items with price yet.';
     if (chart) { chart.destroy(); chart = null; }
     return;
   } else {
-    document.getElementById('analyticsStats').innerText = `Total spent: $${total.toFixed(2)} • Days: ${labels.length}`;
+    document.getElementById('analyticsStats').innerText =
+      `Total spent: $${total.toFixed(2)} • Days: ${labels.length}`;
   }
 
-  // Build or update Chart.js chart
   if (chart) {
     chart.data.labels = labels;
     chart.data.datasets[0].data = data;
@@ -102,5 +99,6 @@ db.collection('groceryItems').orderBy('createdAt','asc').onSnapshot(snapshot => 
   }
 }, err => {
   console.error('Analytics listener error', err);
-  document.getElementById('analyticsStats').innerText = 'Failed to load analytics: ' + err.message;
+  document.getElementById('analyticsStats').innerText =
+    'Failed to load analytics: ' + err.message;
 });
