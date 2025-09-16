@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Spending Analytics — Family Grocery List</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Spending Analytics</h1>
+    <div class="small-note"><a href="index.html">Back to list</a></div>
+  </header>
+
+  <main class="container">
+    <section class="list-wrap" style="padding:18px">
+      <h3>Spending over time</h3>
+      <p class="small-note">Only items marked as bought and with a price > 0 are included.</p>
+      <canvas id="spendingChart" width="800" height="320"></canvas>
+      <div id="analyticsStats" class="stats" style="margin-top:14px">Loading...</div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Chart shows daily totals. You can adjust the aggregation in analytics.js</small>
+  </footer>
+
+  <script type="module" src="analytics.js"></script>
+</body>
+</html>

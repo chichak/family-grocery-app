@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Family Grocery List</title>
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Family Grocery List</h1>
+    <div class="small-note">Real-time sync • Add items from any device • <a href="analytics.html">Analytics</a></div>
+  </header>
+
+  <main class="container">
+    <section class="add-row">
+      <input id="itemName" type="text" placeholder="Item name (e.g., Milk)" />
+      <input id="itemQty" type="number" min="1" placeholder="Qty" />
+      <button id="addBtn">Add</button>
+    </section>
+
+    <section class="list-wrap">
+      <table id="listTable" class="list-table">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th class="col-qty">Qty</th>
+            <th>Price</th>
+            <th class="col-action">Done</th>
+            <th class="col-action">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </section>
+
+    <section class="stats" id="stats">
+      Items: 0 • Bought: 0 • Total Spent: $0.00
+    </section>
+  </main>
+
+  <footer class="footer">
+    <small>Tip: open this page on both phones to test real-time updates.</small>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
