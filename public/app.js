@@ -1,9 +1,11 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+// Import Firebase modules from CDN (no bundler required)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { 
+  getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, getDoc,
+  serverTimestamp, onSnapshot, orderBy, query
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// Your web app's Firebase configuration
+// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDKCI6ZLpRL5HHWrMf3KmftFJuzgKYgshQ",
   authDomain: "family-grocery-list-d75f8.firebaseapp.com",
@@ -13,39 +15,44 @@ const firebaseConfig = {
   appId: "1:640152677933:web:9917450889574c636712a4"
 };
 
-// Initialize Firebase
-// const app = initializeApp(firebaseConfig);
+// Initialize Firebase + Firestore
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-// Initialize Firebase (compat libs loaded in index.html)
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
+// DOM elements
 const addBtn = document.getElementById('addBtn');
 const itemNameInput = document.getElementById('itemName');
 const itemQtyInput = document.getElementById('itemQty');
 const listBody = document.getElementById('listBody');
 const statsEl = document.getElementById('stats');
 
+// Event bindings
 addBtn.addEventListener('click', addItem);
 itemNameInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') addItem(); });
 
-function sanitize(str){
+// Helpers
+function sanitize(str) {
   return String(str || '').trim();
 }
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]));
+}
 
-async function addItem(){
+// Add item
+async function addItem() {
   const name = sanitize(itemNameInput.value);
   const qty = parseInt(itemQtyInput.value) || 1;
   if (!name) { itemNameInput.focus(); return; }
 
   try {
-    await db.collection('groceryItems').add({
+    await addDoc(collection(db, 'groceryItems'), {
       name,
       qty,
       checked: false,
       price: 0,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
     itemNameInput.value = '';
     itemQtyInput.value = '';
@@ -56,37 +63,36 @@ async function addItem(){
 }
 
 // Real-time listener: order by createdAt
-db.collection('groceryItems').orderBy('createdAt','asc').onSnapshot(snapshot => {
+const itemsQuery = query(collection(db, 'groceryItems'), orderBy('createdAt', 'asc'));
+onSnapshot(itemsQuery, (snapshot) => {
   const docs = [];
-  snapshot.forEach(doc => docs.push({ id: doc.id, ...doc.data() }));
+  snapshot.forEach(docSnap => docs.push({ id: docSnap.id, ...docSnap.data() }));
   renderList(docs);
-}, err => {
+}, (err) => {
   console.error('Listener error', err);
 });
 
-function renderList(items){
+function renderList(items) {
   listBody.innerHTML = '';
   let boughtCount = 0;
   let totalPrice = 0;
+
   items.forEach(item => {
     const tr = document.createElement('tr');
     if (item.checked) tr.classList.add('row-checked');
 
-    const priceVal = (item.price || 0).toFixed ? (Number(item.price||0)).toFixed(2) : '0.00';
-    const nameCell = `<td><strong>${escapeHtml(item.name)}</strong></td>`;
-    const qtyCell = `<td class="col-qty">${item.qty || 1}</td>`;
-    const priceCell = `<td>
-      <input type="number" min="0" step="0.01" value="${priceVal}" data-id="${item.id}" class="price-input" />
-    </td>`;
-    const checkboxCell = `<td class="col-action">
-      <input type="checkbox" ${item.checked ? 'checked' : ''} data-id="${item.id}" class="check-input"/>
-    </td>`;
-    const actionsCell = `<td class="col-action">
-      <button class="btn btn-edit btn-small" data-id="${item.id}" data-action="edit">Edit</button>
-      <button class="btn btn-delete btn-small" data-id="${item.id}" data-action="delete">Del</button>
-    </td>`;
+    const priceVal = (item.price || 0).toFixed ? Number(item.price || 0).toFixed(2) : '0.00';
 
-    tr.innerHTML = nameCell + qtyCell + priceCell + checkboxCell + actionsCell;
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(item.name)}</strong></td>
+      <td class="col-qty">${item.qty || 1}</td>
+      <td><input type="number" min="0" step="0.01" value="${priceVal}" data-id="${item.id}" class="price-input"/></td>
+      <td class="col-action"><input type="checkbox" ${item.checked ? 'checked' : ''} data-id="${item.id}" class="check-input"/></td>
+      <td class="col-action">
+        <button class="btn btn-edit btn-small" data-id="${item.id}" data-action="edit">Edit</button>
+        <button class="btn btn-delete btn-small" data-id="${item.id}" data-action="delete">Del</button>
+      </td>
+    `;
     listBody.appendChild(tr);
 
     if (item.checked) {
@@ -97,14 +103,14 @@ function renderList(items){
 
   statsEl.innerText = `Items: ${items.length} • Bought: ${boughtCount} • Total Spent: $${totalPrice.toFixed(2)}`;
 
-  // attach event handlers for newly created elements
+  // Attach handlers
   document.querySelectorAll('.check-input').forEach(inp => {
     inp.addEventListener('change', async (e) => {
       const id = e.target.dataset.id;
       try {
-        await db.collection('groceryItems').doc(id).update({
+        await updateDoc(doc(db, 'groceryItems', id), {
           checked: e.target.checked,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          updatedAt: serverTimestamp()
         });
       } catch (err) { console.error(err); alert('Failed to toggle item'); }
     });
@@ -115,9 +121,9 @@ function renderList(items){
       const id = e.target.dataset.id;
       const value = parseFloat(e.target.value) || 0;
       try {
-        await db.collection('groceryItems').doc(id).update({
+        await updateDoc(doc(db, 'groceryItems', id), {
           price: value,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          updatedAt: serverTimestamp()
         });
       } catch (err) { console.error(err); alert('Failed to update price'); }
     });
@@ -126,16 +132,16 @@ function renderList(items){
   document.querySelectorAll('button[data-action="edit"]').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const id = e.target.dataset.id;
-      // Simple edit prompt for name and qty
-      const doc = await db.collection('groceryItems').doc(id).get();
-      const data = doc.data() || {};
+      const docRef = doc(db, 'groceryItems', id);
+      const snap = await getDoc(docRef);
+      const data = snap.data() || {};
       const newName = prompt('Edit item name:', data.name) || data.name;
       const newQty = prompt('Edit quantity:', data.qty || 1) || data.qty;
       try {
-        await db.collection('groceryItems').doc(id).update({
+        await updateDoc(docRef, {
           name: String(newName).trim(),
           qty: Number(newQty) || 1,
-          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          updatedAt: serverTimestamp()
         });
       } catch (err) { console.error(err); alert('Failed to update item'); }
     });
@@ -146,13 +152,8 @@ function renderList(items){
       const id = e.target.dataset.id;
       if (!confirm('Delete this item?')) return;
       try {
-        await db.collection('groceryItems').doc(id).delete();
+        await deleteDoc(doc(db, 'groceryItems', id));
       } catch (err) { console.error(err); alert('Failed to delete item'); }
     });
   });
-}
-
-function escapeHtml(s){
-  if(!s) return '';
-  return s.replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]));
 }
